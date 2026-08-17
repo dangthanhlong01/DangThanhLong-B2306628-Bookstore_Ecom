@@ -1,4 +1,4 @@
-import Banner from '../models/banner.js';
+import Banner from '../models/Banner.js';
 import { HTTP_STATUS } from '../constants/errorCodes.js';
 
 const getAllBanners = async ({ page = 1, limit = 10, name }) => {
@@ -163,7 +163,7 @@ const deleteBanner = async (id) => {
 // Dùng cho trang chủ - không cần quyền admin
 const getActiveBanners = async () => {
     try {
-        const banners = await Banner.find({ statusId: 'active' }).sort({ createdAt: -1 });
+        const banners = await Banner.find({ statusId: 'active' }).sort({ createdAt: 1 });
 
         return {
             statusCode: HTTP_STATUS.OK,

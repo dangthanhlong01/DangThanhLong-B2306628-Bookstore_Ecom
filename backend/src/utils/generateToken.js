@@ -11,7 +11,7 @@ const generateToken = (userId, role) => {
     return jwt.sign(
         { id: userId, role }, // payload: dữ liệu được mã hoá trong token
         process.env.JWT_SECRET, // chuỗi bí mật để ký token (lưu trong .env)
-        { expiresIn: "5m" } // thời gian hết hạn của token
+        { expiresIn: "3d" } // thời gian hết hạn của token
     );
 };
 

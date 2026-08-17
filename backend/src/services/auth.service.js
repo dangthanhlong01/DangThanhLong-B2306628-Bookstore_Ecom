@@ -1,12 +1,17 @@
 // auth.service.js - Chứa toàn bộ logic nghiệp vụ xác thực người dùng
 // Mỗi hàm trả về object chuẩn: { success, statusCode, message, data? }
 import bcrypt from "bcryptjs";
+import { OAuth2Client } from "google-auth-library";
 import User from "../models/User.js";
 import OtpVerification from "../models/OtpVerification.js";
 import generateToken from "../utils/generateToken.js";
 import generateOtp from "../utils/generateOtp.js";
 import sendOtpEmail from "./mail.services.js";
 import { HTTP_STATUS } from "../constants/errorCodes.js";
+const googleClient = new OAuth2Client(
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET
+);
 
 const OTP_EXPIRE_MINUTES = 5;
 const MAX_OTP_ATTEMPTS = 5;
@@ -22,12 +27,11 @@ const sendOtp = async (email) => {
         };
     }
 
-    // Email đã có tài khoản chính thức → không cho gửi OTP nữa
     const existingUser = await User.findOne({ email });
     if (existingUser) {
         return {
             success: false,
-            statusCode: HTTP_STATUS.CONFLICT, // 409 - dữ liệu bị trùng
+            statusCode: HTTP_STATUS.CONFLICT,
             message: "Email đã được sử dụng để đăng ký",
         };
     }
@@ -37,14 +41,13 @@ const sendOtp = async (email) => {
 
     let otpRecord = await OtpVerification.findOne({ email });
 
-    // Chống spam: nếu vừa gửi OTP cách đây chưa đủ 60s thì chặn lại
     if (otpRecord) {
         const secondsSinceLastSend = (Date.now() - otpRecord.updatedAt.getTime()) / 1000;
         if (secondsSinceLastSend < RESEND_OTP_COOLDOWN_SECONDS) {
             const waitTime = Math.ceil(RESEND_OTP_COOLDOWN_SECONDS - secondsSinceLastSend);
             return {
                 success: false,
-                statusCode: HTTP_STATUS.TOO_MANY_REQUESTS, // 429
+                statusCode: HTTP_STATUS.TOO_MANY_REQUESTS,
                 message: `Vui lòng đợi ${waitTime} giây trước khi yêu cầu gửi lại OTP`,
             };
         }
@@ -81,7 +84,7 @@ const verifyOtp = async (email, otp) => {
     if (!otpRecord) {
         return {
             success: false,
-            statusCode: HTTP_STATUS.NOT_FOUND, // 404 - không tìm thấy yêu cầu OTP nào
+            statusCode: HTTP_STATUS.NOT_FOUND,
             message: "Không tìm thấy yêu cầu OTP cho email này, vui lòng gửi lại OTP",
         };
     }
@@ -89,7 +92,7 @@ const verifyOtp = async (email, otp) => {
     if (otpRecord.attempts >= MAX_OTP_ATTEMPTS) {
         return {
             success: false,
-            statusCode: HTTP_STATUS.TOO_MANY_REQUESTS, // 429
+            statusCode: HTTP_STATUS.TOO_MANY_REQUESTS,
             message: "Bạn đã nhập sai quá nhiều lần, vui lòng yêu cầu gửi lại mã OTP mới",
         };
     }
@@ -136,7 +139,7 @@ const registerUser = async ({ fullName, email, password, phone, dob }) => {
     if (!otpRecord) {
         return {
             success: false,
-            statusCode: HTTP_STATUS.FORBIDDEN, // 403 - không đủ điều kiện thực hiện hành động
+            statusCode: HTTP_STATUS.FORBIDDEN,
             message: "Email chưa được xác minh OTP, vui lòng xác minh trước khi đăng ký",
         };
     }
@@ -145,7 +148,7 @@ const registerUser = async ({ fullName, email, password, phone, dob }) => {
     if (existingUser) {
         return {
             success: false,
-            statusCode: HTTP_STATUS.CONFLICT, // 409
+            statusCode: HTTP_STATUS.CONFLICT,
             message: "Email đã được sử dụng",
         };
     }
@@ -166,13 +169,12 @@ const registerUser = async ({ fullName, email, password, phone, dob }) => {
     await OtpVerification.deleteOne({ email });
 
     const token = generateToken(newUser._id, newUser.role);
-    // Lưu token vừa sinh vào DB để dùng cho việc kiểm soát phiên sau này
     newUser.tokenUser = token;
     await newUser.save();
 
     return {
         success: true,
-        statusCode: HTTP_STATUS.CREATED, // 201 - tạo tài nguyên mới thành công
+        statusCode: HTTP_STATUS.CREATED,
         message: "Đăng ký thành công",
         data: {
             user: {
@@ -196,11 +198,11 @@ const loginUser = async (email, password) => {
         };
     }
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email }).select("+password"); // thêm .select("+password")
     if (!user) {
         return {
             success: false,
-            statusCode: HTTP_STATUS.UNAUTHORIZED, // 401 - sai thông tin đăng nhập
+            statusCode: HTTP_STATUS.UNAUTHORIZED,
             message: "Email hoặc mật khẩu không đúng",
         };
     }
@@ -208,8 +210,18 @@ const loginUser = async (email, password) => {
     if (user.status === "inactive") {
         return {
             success: false,
-            statusCode: HTTP_STATUS.FORBIDDEN, // 403 - tài khoản bị khoá, đúng nghĩa "bị từ chối truy cập"
+            statusCode: HTTP_STATUS.FORBIDDEN,
             message: "Tài khoản của bạn đã bị khoá",
+        };
+    }
+
+    // Bảo vệ thêm: nếu user đăng ký qua Google trước đây mà chưa từng đặt password
+    // (hoặc trường hợp dữ liệu cũ thiếu password), tránh lỗi bcrypt và trả lỗi rõ ràng
+    if (!user.password) {
+        return {
+            success: false,
+            statusCode: HTTP_STATUS.UNAUTHORIZED,
+            message: "Tài khoản này chưa đặt mật khẩu, vui lòng đăng nhập bằng Google hoặc đặt lại mật khẩu",
         };
     }
 
@@ -223,8 +235,6 @@ const loginUser = async (email, password) => {
     }
 
     const token = generateToken(user._id, user.role);
-    // Ghi đè token mới vào DB
-    // → nếu user đang đăng nhập ở thiết bị khác với token cũ, token đó sẽ tự động bị vô hiệu hoá
     user.tokenUser = token;
     await user.save();
     return {
@@ -242,6 +252,108 @@ const loginUser = async (email, password) => {
         },
     };
 };
+
+// Đăng nhập bằng Google
+const loginWithGoogle = async (idToken) => {
+    try {
+        if (!idToken) {
+            return {
+                success: false,
+                statusCode: HTTP_STATUS.BAD_REQUEST,
+                message: "Google token không tồn tại",
+            };
+        }
+
+        const ticket = await googleClient.verifyIdToken({
+            idToken,
+            audience: process.env.GOOGLE_CLIENT_ID,
+        });
+
+        const payload = ticket.getPayload();
+        const { email, name, picture, email_verified } = payload;
+
+        if (!email || !email_verified) {
+            return {
+                success: false,
+                statusCode: HTTP_STATUS.UNAUTHORIZED,
+                message: "Email Google chưa được xác minh",
+            };
+        }
+
+        let user = await User.findOne({ email });
+
+        if (!user) {
+            /*
+             * User.js yêu cầu password bắt buộc.
+             * Người dùng Google không nhập password,
+             * vì vậy backend tạo password ngẫu nhiên rồi hash lại.
+             */
+            const randomPassword =
+                Math.random().toString(36).slice(-10) + "Google@123";
+
+            const hashedPassword = await bcrypt.hash(randomPassword, 10);
+
+            if (!hashedPassword || typeof hashedPassword !== "string") {
+                throw new Error(
+                    "Không thể tạo mật khẩu ngẫu nhiên cho tài khoản Google"
+                );
+            }
+
+            user = await User.create({
+                fullName: name || "",
+                email,
+                password: hashedPassword,
+                phone: "",
+                avatar: picture || "",
+                role: "customer",
+                status: "active",
+                isactiveEmail: true,
+            });
+        }
+
+        if (user.status === "inactive") {
+            return {
+                success: false,
+                statusCode: HTTP_STATUS.FORBIDDEN,
+                message: "Tài khoản của bạn đã bị khoá",
+            };
+        }
+
+        const token = generateToken(user._id, user.role);
+
+        // Dùng updateOne thay vì user.save() để KHÔNG kích hoạt validate
+        // toàn bộ document — tránh lỗi với các user cũ (vd tạo qua Google
+        // trước đây) có thể đang thiếu field password.
+        await User.updateOne({ _id: user._id }, { $set: { tokenUser: token } });
+
+        return {
+            success: true,
+            statusCode: HTTP_STATUS.OK,
+            message: "Đăng nhập Google thành công",
+            data: {
+                user: {
+                    id: user._id,
+                    fullName: user.fullName,
+                    email: user.email,
+                    role: user.role,
+                    avatar: user.avatar,
+                },
+                token,
+            },
+        };
+    } catch (error) {
+        console.error("===== GOOGLE VERIFY ERROR =====");
+        console.error("MESSAGE:", error.message);
+        console.error("ERROR:", error);
+
+        return {
+            success: false,
+            statusCode: HTTP_STATUS.UNAUTHORIZED,
+            message: error.message || "Đăng nhập Google thất bại",
+        };
+    }
+};
+
 // Đăng xuất - xoá token khỏi DB để vô hiệu hoá phiên đăng nhập hiện tại
 const logoutUser = async (userId) => {
     const user = await User.findById(userId);
@@ -268,5 +380,6 @@ export default {
     verifyOtp,
     registerUser,
     loginUser,
+    loginWithGoogle,
     logoutUser,
 };

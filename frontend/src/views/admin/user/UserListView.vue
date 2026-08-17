@@ -1,4 +1,4 @@
-<template>
+<!-- <template>
   <div class="user-list-view">
     <h1 class="page-title">Quản lý người dùng</h1>
 
@@ -74,4 +74,4 @@ onMounted(fetchUsers)
   font-size: 14px;
   margin: 0;
 }
-</style>
+</style> -->

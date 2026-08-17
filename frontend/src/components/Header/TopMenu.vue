@@ -9,8 +9,8 @@
       <div class="top-right">
         <ul>
           <li v-if="userStore.isLoggedIn">
-            <router-link :to="`/user/detail/${userStore.user.id}`">
-              {{ userStore.fullName }}
+            <router-link :to="`/user/profile/`">
+              {{ userStore.user.fullName }}
             </router-link>
           </li>
 

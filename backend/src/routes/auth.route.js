@@ -7,6 +7,9 @@ const router = express.Router();
 // POST /api/auth/register - đăng ký tài khoản
 router.post("/register", authController.handleRegisterUser);
 
+// POST /api/auth/google - đăng nhập bằng Google
+router.post("/google", authController.handleGoogleLogin);
+
 // POST /api/auth/login - đăng nhập
 router.post("/login", authController.handleLoginUser);
 

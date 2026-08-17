@@ -1,4 +1,4 @@
-<template>
+<!-- <template>
   <div class="modal-overlay" @click.self="$emit('close')">
     <div class="modal-box">
       <div class="modal-header">
@@ -190,4 +190,4 @@ function handleSubmit() {
   opacity: 0.6;
   cursor: not-allowed;
 }
-</style>
+</style> -->

@@ -2,6 +2,7 @@
 // Toàn bộ logic nghiệp vụ và quyết định status code nằm trong service
 import authService from "../services/auth.service.js";
 import { HTTP_STATUS } from "../constants/errorCodes.js";
+
 // create user
 const handleRegisterUser = async (req, res) => {
     try {
@@ -61,6 +62,24 @@ const handleVerifyOtp = async (req, res) => {
     }
 };
 
+// login with google
+const handleGoogleLogin = async (req, res) => {
+    try {
+        // Frontend có thể gửi field tên là idToken hoặc credential tuỳ cách bạn code phía Vue.
+        // Hỗ trợ cả 2 tên để không bị lệch payload.
+        const idToken = req.body.idToken || req.body.credential;
+
+        const result = await authService.loginWithGoogle(idToken);
+        return res.status(result.statusCode).json(result);
+    } catch (error) {
+        console.log(error);
+        return res.status(HTTP_STATUS.INTERNAL_ERROR).json({
+            success: false,
+            message: "Lỗi từ phía máy chủ",
+        });
+    }
+};
+
 // logout
 const handleLogoutUser = async (req, res) => {
     try {
@@ -81,5 +100,6 @@ export default {
     handleVerifyOtp,
     handleRegisterUser,
     handleLoginUser,
+    handleGoogleLogin,
     handleLogoutUser,
 };

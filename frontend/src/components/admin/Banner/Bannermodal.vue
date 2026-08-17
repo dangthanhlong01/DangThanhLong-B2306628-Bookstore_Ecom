@@ -3,24 +3,20 @@
     <div class="table-card-header">
       <div class="header-title">
         <span class="icon">▦</span>
-        <span>Danh sách người dùng</span>
+        <span>Danh sách banner</span>
       </div>
+      <button class="btn-add" @click="$emit('add')">+ Thêm banner</button>
     </div>
 
     <div class="table-toolbar">
       <div class="search-box">
         <input
           type="text"
-          placeholder="Tìm kiếm theo số điện thoại"
+          placeholder="Tìm kiếm theo tên banner"
           v-model="searchModel"
         />
         <span class="search-icon">🔍</span>
       </div>
-
-      <button class="btn-export" @click="$emit('export')">
-        Xuất excel
-        <span class="export-icon">⬇</span>
-      </button>
     </div>
 
     <div class="table-wrapper">
@@ -28,37 +24,40 @@
         <thead>
           <tr>
             <th>STT</th>
-            <th>Email</th>
-            <th>Họ và tên</th>
-            <th>Số điện thoại</th>
-            <th>Ngày sinh</th>
-            <th>Quyền</th>
+            <th>Ảnh</th>
+            <th>Tên</th>
+            <th>Mô tả</th>
             <th>Trạng thái</th>
             <th>Thao tác</th>
           </tr>
         </thead>
         <tbody>
           <tr v-if="loading">
-            <td colspan="8" class="state-cell">Đang tải...</td>
+            <td colspan="6" class="state-cell">Đang tải...</td>
           </tr>
-          <tr v-else-if="!users.length">
-            <td colspan="8" class="state-cell">Không có người dùng nào</td>
+          <tr v-else-if="!banners.length">
+            <td colspan="6" class="state-cell">Không có banner nào</td>
           </tr>
-          <tr v-for="(user, index) in users" :key="user._id">
+          <tr v-for="(banner, index) in banners" :key="banner._id">
             <td>{{ startIndex + index }}</td>
-            <td>{{ user.email }}</td>
-            <td>{{ user.fullName }}</td>
-            <td>{{ user.phone }}</td>
-            <td>{{ formatDate(user.dob) }}</td>
-            <td>{{ user.role }}</td>
             <td>
-              <span class="status-badge" :class="user.status">
-                {{ user.status === 'active' ? 'Hoạt động' : 'Ngừng hoạt động' }}
+              <img
+                v-if="banner.image"
+                :src="banner.image"
+                :alt="banner.name"
+                class="row-thumb"
+              />
+            </td>
+            <td>{{ banner.name }}</td>
+            <td class="desc-cell">{{ banner.description }}</td>
+            <td>
+              <span class="status-badge" :class="banner.statusId">
+                {{ banner.statusId === 'active' ? 'Hoạt động' : 'Ngừng hoạt động' }}
               </span>
             </td>
             <td class="actions">
-              <a href="#" class="link-edit" @click.prevent="$emit('edit', user)">Edit</a>
-              <a href="#" class="link-delete" @click.prevent="$emit('delete', user)">Delete</a>
+              <a href="#" class="link-edit" @click.prevent="$emit('edit', banner)">Edit</a>
+              <a href="#" class="link-delete" @click.prevent="$emit('delete', banner)">Delete</a>
             </td>
           </tr>
         </tbody>
@@ -89,15 +88,15 @@
 import { computed } from 'vue'
 
 const props = defineProps({
-  users: { type: Array, default: () => [] },
+  banners: { type: Array, default: () => [] },
   loading: { type: Boolean, default: false },
   page: { type: Number, default: 1 },
-  limit: { type: Number, default: 6 },
+  limit: { type: Number, default: 10 },
   totalPages: { type: Number, default: 1 },
   search: { type: String, default: '' },
 })
 
-const emit = defineEmits(['edit', 'delete', 'go-to-page', 'export', 'update:search'])
+const emit = defineEmits(['add', 'edit', 'delete', 'go-to-page', 'update:search'])
 
 const searchModel = computed({
   get: () => props.search,
@@ -105,13 +104,6 @@ const searchModel = computed({
 })
 
 const startIndex = computed(() => (props.page - 1) * props.limit + 1)
-
-function formatDate(date) {
-  if (!date) return ''
-  const d = new Date(date)
-  if (Number.isNaN(d.getTime())) return date
-  return d.toLocaleDateString('vi-VN')
-}
 </script>
 
 <style scoped>
@@ -121,6 +113,9 @@ function formatDate(date) {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 .table-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   padding: 16px 20px;
   border-bottom: 1px solid #eef0f2;
 }
@@ -134,6 +129,19 @@ function formatDate(date) {
 }
 .icon {
   color: #2563eb;
+}
+.btn-add {
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  padding: 9px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.btn-add:hover {
+  background: #1d4ed8;
 }
 .table-toolbar {
   display: flex;
@@ -168,22 +176,6 @@ function formatDate(date) {
   color: #9ca3af;
   pointer-events: none;
 }
-.btn-export {
-  background: #16a34a;
-  color: #fff;
-  border: none;
-  padding: 9px 18px;
-  border-radius: 6px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-.btn-export:hover {
-  background: #15803d;
-}
 .table-wrapper {
   overflow-x: auto;
   padding: 0 4px 8px;
@@ -205,10 +197,22 @@ tbody td {
   padding: 12px 16px;
   color: #374151;
   border-bottom: 1px solid #f3f4f6;
-  white-space: nowrap;
 }
 tbody tr:hover {
   background: #f9fafb;
+}
+.row-thumb {
+  width: 64px;
+  height: 36px;
+  object-fit: cover;
+  border-radius: 4px;
+  display: block;
+}
+.desc-cell {
+  max-width: 260px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .state-cell {
   text-align: center;
@@ -218,6 +222,7 @@ tbody tr:hover {
 .actions {
   display: flex;
   gap: 12px;
+  white-space: nowrap;
 }
 .link-edit {
   color: #2563eb;

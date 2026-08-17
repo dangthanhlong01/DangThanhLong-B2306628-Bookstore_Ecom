@@ -23,8 +23,12 @@ const getProfile = async (userId) => {
 };
 
 // Cập nhật thông tin cá nhân (không bao gồm email, password)
-const updateProfile = async (userId, { fullName, phone, avatar, dob }) => {
-    const user = await User.findById(userId);
+const updateProfile = async (
+    userId,
+    { fullName, phone, avatar, dob, address, gender }
+) => {
+    const user = await User.findById(userId).select("+password");
+
     if (!user) {
         return {
             success: false,
@@ -33,12 +37,33 @@ const updateProfile = async (userId, { fullName, phone, avatar, dob }) => {
         };
     }
 
-    // Chỉ cập nhật field nào có gửi lên, field không gửi thì giữ nguyên giá trị cũ
-    if (fullName !== undefined) user.fullName = fullName;
-    if (phone !== undefined) user.phone = phone;
-    if (avatar !== undefined) user.avatar = avatar;
-    if (dob !== undefined) user.dob = dob;
+    // Chỉ cập nhật những field được gửi lên
+    if (fullName !== undefined) {
+        user.fullName = fullName;
+    }
 
+    if (phone !== undefined) {
+        user.phone = phone;
+    }
+
+    if (avatar !== undefined) {
+        user.avatar = avatar;
+    }
+
+    if (dob !== undefined) {
+        user.dob = dob;
+    }
+
+    if (address !== undefined) {
+        user.address = address;
+    }
+
+    if (gender !== undefined) {
+        user.gender = gender;
+    }
+    console.log("USER ID:", userId);
+    console.log("USER:", user);
+    console.log("PASSWORD:", user?.password);
     await user.save();
 
     return {
@@ -53,6 +78,8 @@ const updateProfile = async (userId, { fullName, phone, avatar, dob }) => {
                 phone: user.phone,
                 avatar: user.avatar,
                 dob: user.dob,
+                address: user.address,
+                gender: user.gender,
                 role: user.role,
             },
         },
@@ -358,6 +385,28 @@ const createUser = async ({ fullName, email, password, phone, dob, role, status 
     };
 };
 
+// Lấy danh sách địa chỉ giao hàng của user đang đăng nhập
+const getAddresses = async (userId) => {
+    const user = await User.findById(userId).select("addresses");
+
+    if (!user) {
+        return {
+            success: false,
+            statusCode: HTTP_STATUS.NOT_FOUND,
+            message: "Người dùng không tồn tại",
+        };
+    }
+
+    return {
+        success: true,
+        statusCode: HTTP_STATUS.OK,
+        message: "Lấy danh sách địa chỉ thành công",
+        data: {
+            addresses: user.addresses,
+        },
+    };
+};
+
 export default {
     getProfile,
     updateProfile,
@@ -369,4 +418,5 @@ export default {
     adminUpdateUser,
     deleteUser,
     createUser,
+    getAddresses,
 };

@@ -10,6 +10,11 @@ router.get("/profile", authMiddleware, userController.handleGetProfile);
 router.put("/profile", authMiddleware, userController.handleUpdateProfile);
 router.put("/change-password", authMiddleware, userController.handleChangePassword);
 
+router.get(
+    "/addresses",
+    authMiddleware,
+    userController.handleGetAddresses
+);
 router.post("/addresses", authMiddleware, userController.handleAddAddress);
 router.put("/addresses/:addressId", authMiddleware, userController.handleUpdateAddress);
 router.delete("/addresses/:addressId", authMiddleware, userController.handleDeleteAddress);
@@ -19,5 +24,6 @@ router.get("/", authMiddleware, adminMiddleware, userController.handleGetAllUser
 router.post("/", authMiddleware, adminMiddleware, userController.handleCreateUser);
 router.put("/:id", authMiddleware, adminMiddleware, userController.handleAdminUpdateUser);
 router.delete("/:id", authMiddleware, adminMiddleware, userController.handleDeleteUser);
+
 
 export default router;

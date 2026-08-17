@@ -18,50 +18,32 @@
 
         <div class="nav-section-label" v-show="!isCollapsed">QUẢN LÝ</div>
 
-        <div class="nav-group">
-          <button class="nav-item nav-group-toggle" @click="toggleGroup('users')">
-            <span v-show="!isCollapsed">Quản lý người dùng</span>
-            <span class="chevron" v-show="!isCollapsed" :class="{ open: openGroups.users }">›</span>
-          </button>
-          <div class="nav-subitems" v-show="openGroups.users && !isCollapsed">
-            <router-link to="/admin/users" class="nav-subitem" active-class="active">
-              Danh sách người dùng
-            </router-link>
-          </div>
-        </div>
-
+        <router-link to="/admin/users" class="nav-item" active-class="active">
+          <span v-show="!isCollapsed">Quản lý người dùng</span>
+        </router-link>
         <router-link to="/admin/categories" class="nav-item" active-class="active">
-          <span v-show="!isCollapsed">Quản lý danh mục</span>
-        </router-link>
-        <router-link to="/admin/restaurants" class="nav-item" active-class="active">
-          <span v-show="!isCollapsed">Quản lý nhà hàng</span>
-        </router-link>
-        <router-link to="/admin/products" class="nav-item" active-class="active">
-          <span v-show="!isCollapsed">Quản lý sản phẩm</span>
+          <span v-show="!isCollapsed">Quản lý thể loại</span>
         </router-link>
         <router-link to="/admin/banners" class="nav-item" active-class="active">
           <span v-show="!isCollapsed">Quản lý băng rôn</span>
         </router-link>
-        <router-link to="/admin/topics" class="nav-item" active-class="active">
-          <span v-show="!isCollapsed">Quản lý chủ đề</span>
+        <router-link to="/admin/authors" class="nav-item" active-class="active">
+          <span v-show="!isCollapsed">Quản lý tác giả</span>
         </router-link>
-        <router-link to="/admin/posts" class="nav-item" active-class="active">
-          <span v-show="!isCollapsed">Quản lý bài đăng</span>
+        <router-link to="/admin/publishers" class="nav-item" active-class="active">
+          <span v-show="!isCollapsed">Quản lý nhà xuất bản</span>
         </router-link>
-        <router-link to="/admin/shipping-types" class="nav-item" active-class="active">
-          <span v-show="!isCollapsed">Quản lý loại ship</span>
-        </router-link>
-        <router-link to="/admin/vouchers" class="nav-item" active-class="active">
-          <span v-show="!isCollapsed">Quản lý voucher</span>
-        </router-link>
-        <router-link to="/admin/suppliers" class="nav-item" active-class="active">
-          <span v-show="!isCollapsed">Quản lý NCC</span>
-        </router-link>
-        <router-link to="/admin/imports" class="nav-item" active-class="active">
-          <span v-show="!isCollapsed">Quản lý nhập hàng</span>
+        <router-link to="/admin/books" class="nav-item" active-class="active">
+          <span v-show="!isCollapsed">Quản lý sách</span>
         </router-link>
         <router-link to="/admin/orders" class="nav-item" active-class="active">
           <span v-show="!isCollapsed">Quản lý đơn hàng</span>
+        </router-link>
+        <router-link to="/admin/shipping-types" class="nav-item" active-class="active">
+          <span v-show="!isCollapsed">Quản lý loại vận chuyển</span>
+        </router-link>
+        <router-link to="/admin/vouchers" class="nav-item" active-class="active">
+          <span v-show="!isCollapsed">Quản lý voucher</span>
         </router-link>
       </nav>
     </aside>

@@ -139,6 +139,21 @@ const handleCreateUser = async (req, res) => {
         });
     }
 };
+
+const handleGetAddresses = async (req, res) => {
+    try {
+        const result = await userService.getAddresses(req.user._id);
+
+        return res.status(result.statusCode).json(result);
+    } catch (error) {
+        console.log("GET ADDRESSES ERROR:", error);
+
+        return res.status(HTTP_STATUS.INTERNAL_ERROR).json({
+            success: false,
+            message: "Lỗi từ phía máy chủ",
+        });
+    }
+};
 export default {
     handleGetProfile,
     handleUpdateProfile,
@@ -150,4 +165,5 @@ export default {
     handleAdminUpdateUser,
     handleDeleteUser,
     handleCreateUser,
+    handleGetAddresses,
 };
