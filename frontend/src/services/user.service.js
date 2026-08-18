@@ -531,6 +531,12 @@ const userService = {
             }
         )
     },
+    // Xóa toàn bộ giỏ hàng
+    clearCart(userId) {
+        return axiosClient.delete(
+            `/shopcart/clear/${userId}`
+        )
+    },
     // =====================================================
     // CHATBOT
     // =====================================================

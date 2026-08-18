@@ -397,10 +397,35 @@ const deleteItemShopCart = async ({
     };
 };
 
+const clearShopCart = async (userId) => {
 
+    if (!userId) {
+        return {
+            success: false,
+            statusCode: HTTP_STATUS.BAD_REQUEST,
+            message: "Thiếu userId",
+        };
+    }
+
+    // Xóa tất cả sản phẩm active trong giỏ của user
+    const result = await ShopCart.deleteMany({
+        userId,
+        statusId: "active",
+    });
+
+    return {
+        success: true,
+        statusCode: HTTP_STATUS.OK,
+        message: "Xoá toàn bộ giỏ hàng thành công",
+        data: {
+            deletedCount: result.deletedCount,
+        },
+    };
+};
 export default {
     getAllShopCartByUserId,
     addShopCart,
     updateQuantity,
     deleteItemShopCart,
+    clearShopCart,
 };

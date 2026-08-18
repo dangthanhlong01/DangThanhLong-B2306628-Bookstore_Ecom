@@ -1866,179 +1866,115 @@ const selectVoucher = async (
 // =====================================================
 
 const placeOrder = async () => {
-
-    if (
-        cartItems.value.length === 0
-    ) {
-
-        alert(
-            'Giỏ hàng đang trống'
-        )
-
+    if (cartItems.value.length === 0) {
+        alert('Giỏ hàng đang trống')
         return
     }
 
-
-    if (
-        !selectedAddress.value
-    ) {
-
-        alert(
-            'Vui lòng chọn địa chỉ nhận hàng'
-        )
-
+    if (!selectedAddress.value) {
+        alert('Vui lòng chọn địa chỉ nhận hàng')
         return
     }
 
-
-    if (
-        !selectedShippingId.value
-    ) {
-
-        alert(
-            'Vui lòng chọn đơn vị vận chuyển'
-        )
-
+    if (!selectedShippingId.value) {
+        alert('Vui lòng chọn đơn vị vận chuyển')
         return
     }
 
-
-    creatingOrder.value =
-        true
-
+    creatingOrder.value = true
 
     try {
+        const voucher = getVoucher(selectedVoucher.value)
 
-        const voucher =
-            getVoucher(
-                selectedVoucher.value
-            )
-
-
+        // =================================================
+        // 1. TẠO ĐƠN HÀNG
+        // =================================================
         const orderData = {
-
-            /*
-             * QUAN TRỌNG:
-             * Lấy ID của địa chỉ đang được chọn
-             */
             addressUserId:
                 selectedAddress.value?._id ||
                 profile.value?.addressUserId ||
                 profile.value?.addressId ||
                 null,
 
+            statusId: null,
 
-            statusId:
-                null,
-
-
-            typeShipId:
-                selectedShippingId.value,
-
+            typeShipId: selectedShippingId.value,
 
             voucherId:
-                voucher?._id ||
-                null,
-
+                voucher?._id || null,
 
             note:
-                note.value ||
-                null,
+                note.value || null,
 
+            isPaymentOnline: false,
 
-            isPaymentOnline:
-                false,
+            shipperId: null,
 
-
-            shipperId:
-                null,
-
-
-            image:
-                null
-
+            image: null
         }
 
-
         const orderResponse =
-            await userService.createOrderBook(
-                orderData
-            )
-
+            await userService.createOrderBook(orderData)
 
         const order =
             orderResponse?.data?.data ||
             orderResponse?.data
 
-
-        const orderId =
-            order?._id
-
+        const orderId = order?._id
 
         if (!orderId) {
-
-            throw new Error(
-                'Không lấy được ID đơn hàng'
-            )
+            throw new Error('Không lấy được ID đơn hàng')
         }
 
-
         // =================================================
-        // TẠO ORDER DETAIL
+        // 2. TẠO ORDER DETAIL
         // =================================================
-
-        for (
-            const item
-            of cartItems.value
-        ) {
-
-            const bookId =
-                getBookId(item)
-
+        for (const item of cartItems.value) {
+            const bookId = getBookId(item)
 
             if (!bookId) {
                 continue
             }
 
-
             const detailData = {
-
-                bookId,
-
-                quantity:
-                    getQuantity(item),
-
-                realPrice:
-                    getBookPrice(item)
-
+                bookId: bookId,
+                quantity: getQuantity(item),
+                realPrice: getBookPrice(item)
             }
-
 
             await userService.createOrderDetail(
                 orderId,
                 detailData
             )
-
         }
 
+        // =================================================
+        // 3. XÓA GIỎ HÀNG
+        // =================================================
+        const userId =
+            profile.value?._id ||
+            profile.value?.id ||
+            profile.value?.userId
 
-        alert(
-            'Đặt hàng thành công!'
+        if (userId) {
+            await userService.clearCart(userId)
+        }
+
+        // Lấy lại giỏ hàng từ database
+        cartItems.value = []
+        window.dispatchEvent(
+            new Event('cart-updated')
         )
+    
+        // =================================================
+        // 4. THÔNG BÁO + CHUYỂN TRANG
+        // =================================================
+        alert('Đặt hàng thành công!')
 
-
-        router.push(
-            `/order-books/${orderId}`
-        )
-
+        router.push('/user/orders')
 
     } catch (error) {
-
-        console.error(
-            'LỖI ĐẶT HÀNG:',
-            error
-        )
-
+        console.error('LỖI ĐẶT HÀNG:', error)
 
         alert(
             error?.response?.data?.message ||
@@ -2047,11 +1983,8 @@ const placeOrder = async () => {
         )
 
     } finally {
-
-        creatingOrder.value =
-            false
+        creatingOrder.value = false
     }
-
 }
 
 

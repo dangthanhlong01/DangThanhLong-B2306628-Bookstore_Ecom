@@ -85,14 +85,22 @@
                                     <input type="text" v-model="registerForm.otp" maxlength="6"
                                         @focus="focusField('otp')" @blur="blurField('otp', registerForm.otp)" />
                                     <label :class="{ active: registerForm.otp || active.otp }">Mã OTP</label>
+
                                     <button type="button" class="otp-btn" :disabled="otpCooldown > 0 || loading.sendOtp"
                                         @click="handleSendOtp">
                                         {{ otpCooldown > 0 ? `Gửi lại (${otpCooldown}s)` : loading.sendOtp ? 'Đang gửi...' : 'Gửi mã' }}
                                     </button>
+
+                                    <button type="button" class="otp-btn verify-btn"
+                                        :disabled="!registerForm.otp || registerForm.otp.length !== 6 || loading.verifyOtp || otpVerified"
+                                        @click="handleVerifyOtp">
+                                        {{ otpVerified ? 'Đã xác thực ✓' : loading.verifyOtp ? 'Đang kiểm tra...' : 'Xác thực' }}
+                                    </button>
+
                                     <span class="error" :style="errors.otp ? { display: 'block' } : {}">{{ errors.otp
                                     }}</span>
                                 </div>
-                                <p v-if="otpMessage" class="otp-message">{{ otpMessage }}</p>
+                                <p v-if="otpMessage" class="otp-message" :class="{ 'otp-error': otpMessageType === 'error' }">{{ otpMessage }}</p>
 
                                 <div class="form-group" :class="{ hasError: errors.password }">
                                     <input type="password" v-model="registerForm.password"
@@ -116,6 +124,7 @@
                                 </div>
 
                                 <p v-if="serverError.register" class="server-error">{{ serverError.register }}</p>
+                                <p v-if="registerSuccess" class="success-message">{{ registerSuccess }}</p>
 
                                 <div class="CTA">
                                     <input type="submit" value="Đăng ký" :disabled="loading.register" />
@@ -131,12 +140,12 @@
 </template>
 
 <script setup>
-import { reactive, ref, onMounted } from 'vue'
+import { reactive, ref, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import authService from '../../services/user.service'
 import { useUserStore } from '@/stores/user'
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID
-console.log('CLIENT ID:', GOOGLE_CLIENT_ID) 
+console.log('CLIENT ID:', GOOGLE_CLIENT_ID)
 
 const userStore = useUserStore()
 const route = useRoute()
@@ -158,9 +167,12 @@ const registerForm = reactive({
 const active = reactive({})
 const errors = reactive({})
 const serverError = reactive({ login: '', register: '' })
-const loading = reactive({ login: false, register: false, sendOtp: false })
+const loading = reactive({ login: false, register: false, sendOtp: false, verifyOtp: false })
 const otpMessage = ref('')
+const otpMessageType = ref('') // 'success' | 'error'
 const otpCooldown = ref(0)
+const otpVerified = ref(false)
+const registerSuccess = ref('')
 let otpTimer = null
 
 function startOtpCooldown(seconds = 60) {
@@ -174,7 +186,9 @@ function startOtpCooldown(seconds = 60) {
 
 async function handleSendOtp() {
     otpMessage.value = ''
+    otpMessageType.value = ''
     errors.otp = ''
+    otpVerified.value = false
 
     if (!registerForm.email || !validateEmail(registerForm.email)) {
         errors.email = 'Vui lòng nhập email hợp lệ trước khi gửi mã'
@@ -184,14 +198,43 @@ async function handleSendOtp() {
     loading.sendOtp = true
     try {
         const res = await authService.sendOtp(registerForm.email)
+        otpMessageType.value = 'success'
         otpMessage.value = res?.message || 'Đã gửi mã OTP, vui lòng kiểm tra email'
         startOtpCooldown(60)
     } catch (err) {
+        otpMessageType.value = 'error'
         otpMessage.value = err?.message || 'Gửi mã OTP thất bại, vui lòng thử lại'
     } finally {
         loading.sendOtp = false
     }
 }
+
+async function handleVerifyOtp() {
+    errors.otp = ''
+    otpMessage.value = ''
+    otpMessageType.value = ''
+    loading.verifyOtp = true
+    try {
+        await authService.verifyOtp(registerForm.email, registerForm.otp)
+        otpVerified.value = true
+        otpMessageType.value = 'success'
+        otpMessage.value = 'Xác thực OTP thành công!'
+    } catch (err) {
+        otpVerified.value = false
+        otpMessageType.value = 'error'
+        otpMessage.value = err?.message || 'Mã OTP không đúng hoặc đã hết hạn'
+    } finally {
+        loading.verifyOtp = false
+    }
+}
+
+// Nếu người dùng đổi email sau khi đã xác thực OTP thì phải xác thực lại
+watch(
+    () => registerForm.email,
+    () => {
+        otpVerified.value = false
+    }
+)
 
 function focusField(field) {
     active[field] = true
@@ -241,6 +284,8 @@ async function handleLogin() {
 
 async function handleRegister() {
     serverError.register = ''
+    registerSuccess.value = ''
+
     errors.fullName = !registerForm.fullName ? 'Vui lòng nhập họ tên' : ''
     errors.email = !registerForm.email
         ? 'Vui lòng nhập email'
@@ -252,7 +297,9 @@ async function handleRegister() {
         ? 'Vui lòng nhập mã OTP đã gửi tới email'
         : registerForm.otp.length !== 6
             ? 'Mã OTP gồm 6 chữ số'
-            : ''
+            : !otpVerified.value
+                ? 'Vui lòng bấm "Xác thực" để kiểm tra mã OTP trước khi đăng ký'
+                : ''
     errors.password = !registerForm.password
         ? 'Vui lòng nhập mật khẩu'
         : registerForm.password.length < 6
@@ -265,9 +312,7 @@ async function handleRegister() {
 
     loading.register = true
     try {
-        // Xác minh OTP trước, backend chỉ cho tạo tài khoản khi OTP đã verified
-        await authService.verifyOtp(registerForm.email, registerForm.otp)
-
+        // OTP đã được xác thực ở bước handleVerifyOtp phía trên, ở đây chỉ tạo tài khoản
         const result = await authService.register({
             fullName: registerForm.fullName,
             email: registerForm.email,
@@ -278,13 +323,18 @@ async function handleRegister() {
             localStorage.setItem('token', result.data.token)
             localStorage.setItem('userData', JSON.stringify(result.data.user))
         }
-        router.push('/login')
+
+        registerSuccess.value = 'Đăng ký thành công!'
+        setTimeout(() => {
+            router.push('/login')
+        }, 1500)
     } catch (err) {
         serverError.register = err?.message || 'Đăng ký thất bại, vui lòng thử lại'
     } finally {
         loading.register = false
     }
 }
+
 function initGoogleLogin() {
     if (!window.google) return
     window.google.accounts.id.initialize({
@@ -325,7 +375,6 @@ function handleGoogleLogin() {
 onMounted(() => {
     mode.value = route.path === '/register' ? 'register' : 'login'
     initGoogleLogin()
-    
 })
 </script>
 
@@ -522,14 +571,23 @@ form span.error {
     margin: 5px 0 0;
 }
 
+.success-message {
+    color: #71cd14;
+    font-size: 13px;
+    margin: 5px 0 0;
+    font-weight: 600;
+}
+
 .otp-group {
     display: flex;
     align-items: flex-end;
     gap: 12px;
+    flex-wrap: wrap;
 }
 
 .otp-group input {
     flex: 1;
+    min-width: 100px;
 }
 
 .otp-btn {
@@ -558,10 +616,24 @@ form span.error {
     color: #999;
 }
 
+.verify-btn {
+    border-color: #71cd14;
+    color: #71cd14;
+}
+
+.verify-btn:hover:not(:disabled) {
+    background: #71cd14;
+    color: #fff;
+}
+
 .otp-message {
     font-size: 12px;
     color: #71cd14;
     margin: -12px 0 15px;
+}
+
+.otp-message.otp-error {
+    color: #f95959;
 }
 
 .CTA {
@@ -632,19 +704,6 @@ form span.error {
 }
 
 .social-btn.facebook {
-    background: #3b5998;
-    color: #fff;
-    border-color: #3b5998;
-}
-
-.social-btn.facebook:hover {
-    background: #334d84;
-}
-
-.social-btn.google:hover {
-    background: #f3e8e8;
-}
-.social-btn.facebook {
     background: #0759c6;
     color: #fff;
     border: 1px solid #1877f2;
@@ -654,6 +713,11 @@ form span.error {
     background: #07489c;
     box-shadow: 0 2px 8px rgba(24, 119, 242, 0.35);
 }
+
+.social-btn.google:hover {
+    background: #f3e8e8;
+}
+
 @media (max-width: 768px) {
     .row {
         flex-direction: column;

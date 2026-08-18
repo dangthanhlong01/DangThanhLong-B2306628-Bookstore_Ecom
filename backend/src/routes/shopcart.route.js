@@ -49,6 +49,9 @@ router.delete(
     "/:id",
     shopCartController.deleteItemShopCart
 );
-
+router.delete(
+    "/clear/:userId",
+    shopCartController.clearShopCart
+);
 
 export default router;

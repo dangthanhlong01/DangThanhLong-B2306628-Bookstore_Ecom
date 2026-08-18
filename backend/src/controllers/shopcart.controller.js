@@ -158,10 +158,39 @@ const deleteItemShopCart = async (req, res) => {
     }
 };
 
+// ============================================================
+// XOÁ TOÀN BỘ GIỎ HÀNG
+// DELETE /api/shopcart/clear/:userId
+// ============================================================
 
+const clearShopCart = async (req, res) => {
+
+    try {
+
+        const { userId } = req.params;
+
+        const result =
+            await shopCartService.clearShopCart(userId);
+
+        return res
+            .status(result.statusCode)
+            .json(result);
+
+    } catch (error) {
+
+        console.error("Lỗi xoá toàn bộ giỏ hàng:", error);
+
+        return res.status(500).json({
+            success: false,
+            statusCode: 500,
+            message: "Lỗi server khi xoá toàn bộ giỏ hàng",
+        });
+    }
+};
 export default {
     getAllShopCartByUserId,
     addShopCart,
     updateQuantity,
     deleteItemShopCart,
+    clearShopCart,
 };
